@@ -1,0 +1,29 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "osType": {
+            "value": "Linux"
+        },
+        "numberCpuCores": {
+            "value": 1
+        },
+        "memory": {
+            "value": "1"
+        },
+        "restartPolicy": {
+            "value": "Always"
+        },
+        "ipAddressType": {
+            "value": "Public"
+        },
+        "ports": {
+            "value": [
+                {
+                    "port": "80",
+                    "protocol": "TCP"
+                }
+            ]
+        }
+    }
+}

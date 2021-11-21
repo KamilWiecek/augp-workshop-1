@@ -1,0 +1,92 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+- name: workloadName
+  value: frontendkw
+- name: serviceConnectionShared
+  value: sc-$(workloadName)-shared
+- name: serviceConnectionDev
+  value: sc-$(workloadName)-dev
+- name: serviceConnectionProd
+  value: sc-$(workloadName)-prod
+- name: containerRegistryName
+  value: acr$(workloadName)shared
+
+stages:
+- stage: SharedInfra
+  displayName: SHARED INFRA
+  jobs:  
+  - job: DeployAcr
+    displayName: 'Deploy ACR'
+    steps:
+    - task: AzurePowerShell@5
+      displayName: Deploy ACR
+      inputs:
+        azureSubscription: ${{ variables.serviceConnectionShared }}
+        ScriptType: 'InlineScript'
+        Inline: |
+          ./scripts/Deploy-Registry.ps1 -WorkloadName ${{ variables.workloadName }} -Environment shared
+        azurePowerShellVersion: 'LatestVersion'
+        pwsh: true
+
+- stage: DockerImage
+  condition: eq(variables['Build.Reason'], 'PullRequest') 
+  displayName: BUILD DOCKER IMAGE
+  jobs:  
+  - job: DockerImageTag
+    displayName: 'Set image tag'
+    steps:
+    - task: PowerShell@2
+      name: SetTagValue
+      displayName: 'Set Docker image tag value'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $sourceBranch = '$(System.PullRequest.SourceBranch)'.Split('/')[-1]
+          $pullRequestId = '$(System.PullRequest.PullRequestId)'
+          $date = Get-Date -Format yyyyMMddHHmm
+          # $buildId = '$(Build.BuildId)'
+          #if empty create new tag name, else use what was provided
+          $tagValue = $sourceBranch + "-$date-$pullRequestId"
+          Write-Output -InputObject "Container image tag value will be $tagValue" 
+          Write-Output -InputObject "##vso[task.setvariable variable=tagValue]$tagValue" 
+          Write-Output -InputObject "##vso[task.setvariable variable=tagValueOutput;isOutput=true]$tagValue" 
+
+    - task: AzureCLI@2
+      condition: eq(variables['Build.Reason'], 'PullRequest')
+      displayName: 'Build and push an image to container registry'
+      inputs:
+        azureSubscription: ${{ variables.serviceConnectionShared }}
+        scriptType: pscore
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd ./app
+          az acr build --registry $(containerRegistryName) -t  $(workloadName):$(tagValue) .
+
+- stage: DeployToDev
+  dependsOn: DockerImage
+  condition: eq(variables['Build.Reason'], 'PullRequest')
+  variables:
+    imageTagValue: $[ stageDependencies.DockerImage.DockerImageTag.outputs['SetTagValue.tagValueOutput'] ]
+  displayName: DEV deployment
+  jobs:  
+  - deployment: DeployAciToEnvironment
+    displayName: Deploy ${{ variables.workloadName }} ACI to DEV environment
+    environment: $(workloadName)-dev
+    strategy: 
+      runOnce:
+        deploy:
+          steps:
+          - task: AzurePowerShell@5
+            displayName: Deploy ${{ variables.workloadName }} ACI to DEV environment
+            inputs:
+              azureSubscription: ${{ variables.serviceConnectionDev }}
+              ScriptType: 'InlineScript'
+              Inline: |
+                ./scripts/Deploy-ContainerGroup.ps1 -WorkloadName '${{ variables.workloadName }}' -Environment 'dev' -Tag '$(imageTagValue)'
+              azurePowerShellVersion: 'LatestVersion'
+              pwsh: true
