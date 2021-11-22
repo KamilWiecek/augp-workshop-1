@@ -16,7 +16,7 @@ param (
 
 $resourceGroupName = "rg-$( $WorkloadName )-$( $Environment )"
 $repositoryAndTag = "$($WorkloadName):$($Tag)"
-$containerRegistryResourceId = "/subscriptions/$( (Get-AzContext).Subscription.Id )/rg-$( $WorkloadName )-shared/providers/Microsoft.ContainerRegistry/registries/acr$( $WorkloadName )shared" 
+$containerRegistryResourceId = "/subscriptions/$( (Get-AzContext).Subscription.Id )/resourceGroups/rg-$( $WorkloadName )-shared/providers/Microsoft.ContainerRegistry/registries/acr$( $WorkloadName )shared" 
 
 $deploymentParameters = @{
     Name                        = ('deployment' + '-' + ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm-ss'))

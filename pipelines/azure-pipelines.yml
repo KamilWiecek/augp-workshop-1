@@ -87,6 +87,7 @@ stages:
               azureSubscription: ${{ variables.serviceConnectionDev }}
               ScriptType: 'InlineScript'
               Inline: |
+                cd $env:SYSTEM_DEFAULTWORKINGDIRECTORY
                 ./scripts/Deploy-ContainerGroup.ps1 -WorkloadName '${{ variables.workloadName }}' -Environment 'dev' -Tag '$(imageTagValue)'
               azurePowerShellVersion: 'LatestVersion'
               pwsh: true
