@@ -81,6 +81,14 @@ stages:
       runOnce:
         deploy:
           steps:
+          - checkout: self
+          - task: PowerShell@2
+            displayName: 'Troubleshooting step'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Get-ChildItem env:\
+                Get-ChildItem -Recurse | Select-Object -ExpandProperty FullName -ErrorAction Stop    
           - task: AzurePowerShell@5
             displayName: Deploy ${{ variables.workloadName }} ACI to DEV environment
             inputs:
